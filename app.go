@@ -2,10 +2,15 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"sync"
+
+	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 // App struct
@@ -116,4 +121,52 @@ func (a *App) getFileFormat(filepath string) string {
 // Greet returns a greeting for the given name
 func (a *App) Greet(name string) string {
 	return fmt.Sprintf("Hello %s, It's show time!", name)
+}
+
+// GetVersion returns the current application version
+func (a *App) GetVersion() string {
+	return "v1.0.5"
+}
+
+// SaveScreenshot saves a base64-encoded screenshot to a user-selected file
+func (a *App) SaveScreenshot(base64Data string) error {
+	// Show save file dialog
+	defaultFilename := "3dmodel-screenshot.png"
+	selectedFile, err := runtime.SaveFileDialog(a.ctx, runtime.SaveDialogOptions{
+		DefaultFilename:          defaultFilename,
+		Title:                   "Save Screenshot",
+		Filters: []runtime.FileFilter{
+			{
+				DisplayName:  "PNG Image",
+				Pattern:     "*.png",
+			},
+		},
+	})
+
+	if err != nil {
+		return fmt.Errorf("failed to open save dialog: %v", err)
+	}
+
+	if selectedFile == "" {
+		return nil // User cancelled the dialog
+	}
+
+	// Decode base64 data
+	imageData, err := base64.StdEncoding.DecodeString(base64Data)
+	if err != nil {
+		return fmt.Errorf("failed to decode base64 data: %v", err)
+	}
+
+	// Ensure directory exists
+	dir := filepath.Dir(selectedFile)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return fmt.Errorf("failed to create directory: %v", err)
+	}
+
+	// Save image data to file
+	if err := os.WriteFile(selectedFile, imageData, 0644); err != nil {
+		return fmt.Errorf("failed to save screenshot: %v", err)
+	}
+
+	return nil
 }

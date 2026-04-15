@@ -3,9 +3,13 @@
 
 export function GetModelInfo():Promise<Record<string, any>>;
 
+export function GetVersion():Promise<string>;
+
 export function Greet(arg1:string):Promise<string>;
 
 export function LoadModel(arg1:string):Promise<string>;
+
+export function SaveScreenshot(arg1:string):Promise<void>;
 
 export function StartRendering(arg1:string):Promise<void>;
 

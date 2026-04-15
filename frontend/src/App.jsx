@@ -5,7 +5,73 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader';
 import { STLLoader } from 'three/examples/jsm/loaders/STLLoader';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
-import {LoadModel, GetModelInfo} from "../wailsjs/go/main/App";
+import {LoadModel, GetModelInfo, GetVersion, SaveScreenshot} from "../wailsjs/go/main/App";
+
+// Language translations
+const translations = {
+    en: {
+        title: '🏆 3D Model Viewer',
+        subtitle: 'View OBJ, GLB, and STL files',
+        selectModel: '📁 Select 3D Model',
+        loading: 'Loading model...',
+        modelInfo: 'Model Information',
+        format: 'Format:',
+        file: 'File:',
+        status: 'Status:',
+        loaded: 'Loaded',
+        notLoaded: 'Not loaded',
+        modelStats: '📊 Model Statistics',
+        vertices: 'Vertices',
+        triangles: 'Triangles',
+        sizeX: 'Size X',
+        sizeY: 'Size Y',
+        sizeZ: 'Size Z',
+        volume: 'Volume',
+        surface: 'Surface',
+        controls: 'Controls',
+        leftClickDrag: 'Left-click drag: Rotate model',
+        scrollWheel: 'Scroll wheel: Zoom in/out',
+        rightClickDrag: 'Right-click drag: Pan',
+        poweredBy: 'Powered by Wisonlau',
+        frontView: 'Front',
+        leftView: 'Left',
+        rightView: 'Right',
+        topView: 'Top',
+        screenshot: 'Screenshot',
+        languageLabel: 'Language'
+    },
+    zh: {
+        title: '🏆 3D模型查看器',
+        subtitle: '查看 OBJ, GLB 和 STL 文件',
+        selectModel: '📁 选择3D模型',
+        loading: '正在加载模型...',
+        modelInfo: '模型信息',
+        format: '格式:',
+        file: '文件:',
+        status: '状态:',
+        loaded: '已加载',
+        notLoaded: '未加载',
+        modelStats: '📊 模型统计',
+        vertices: '顶点数',
+        triangles: '三角形数',
+        sizeX: '尺寸 X',
+        sizeY: '尺寸 Y',
+        sizeZ: '尺寸 Z',
+        volume: '体积',
+        surface: '表面积',
+        controls: '控制方式',
+        leftClickDrag: '左键拖动: 旋转模型',
+        scrollWheel: '滚轮: 缩放',
+        rightClickDrag: '右键拖动: 平移',
+        poweredBy: 'Powered by Wisonlau',
+        frontView: '正视图',
+        leftView: '左视图',
+        rightView: '右视图',
+        topView: '俯视图',
+        screenshot: '截图',
+        languageLabel: '语言'
+    }
+};
 
 function App() {
     const [modelPath, setModelPath] = useState('');
@@ -13,8 +79,12 @@ function App() {
     const [modelStats, setModelStats] = useState(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const [version, setVersion] = useState('');
+    const [language, setLanguage] = useState('zh');
     const canvasRef = useRef(null);
     const threeRef = useRef(null);
+
+    const t = translations[language];
 
     // Handle window resize
     useEffect(() => {
@@ -57,6 +127,19 @@ function App() {
             window.removeEventListener('resize', handleResize);
             clearTimeout(initialResizeTimeout);
         };
+    }, []);
+
+    // Load version info on mount
+    useEffect(() => {
+        const loadVersion = async () => {
+            try {
+                const appVersion = await GetVersion();
+                setVersion(appVersion);
+            } catch (err) {
+                console.error('Failed to load version:', err);
+            }
+        };
+        loadVersion();
     }, []);
 
     const handleFileSelect = async (e) => {
@@ -152,7 +235,11 @@ function App() {
         // Initialize Three.js with new canvas
         const scene = new THREE.Scene();
         const camera = new THREE.PerspectiveCamera(75, canvasWidth / canvasHeight, 0.1, 1000);
-        const renderer = new THREE.WebGLRenderer({canvas: canvasRef.current, antialias: true});
+        const renderer = new THREE.WebGLRenderer({
+            canvas: canvasRef.current,
+            antialias: true,
+            preserveDrawingBuffer: true // Enable screenshot functionality
+        });
 
         renderer.setSize(canvasWidth, canvasHeight);
         renderer.setClearColor(0x1b2636);
@@ -168,9 +255,8 @@ function App() {
         backLight.position.set(-1, -1, -1);
         scene.add(backLight);
 
-        // Add grid helper
-        const gridHelper = new THREE.GridHelper(10, 10, 0x444444, 0x222222);
-        gridHelper.position.y = -2;
+        // Add grid helper - will be positioned after model is loaded
+        const gridHelper = new THREE.GridHelper(50, 50, 0x444444, 0x222222);
         scene.add(gridHelper);
 
         // Load file
@@ -194,25 +280,31 @@ function App() {
                     
                     if (model.scene) {
                         scene.add(model.scene);
-                        centerModel(model.scene, camera);
-                        
+                        centerModel(model.scene, camera, scene);
+
                         // Calculate model statistics
                         const stats = calculateModelStats(model.scene);
                         setModelStats(stats);
+
+                        // Store model reference for later use
+                        threeRef.current = {...threeRef.current, model: model.scene};
                     }
                 } else if (fileExt === 'obj') {
                     loader = new OBJLoader();
                     model = loader.parse(contents);
                     scene.add(model);
-                    centerModel(model, camera);
-                    
+                    centerModel(model, camera, scene);
+
                     // Calculate model statistics
                     const stats = calculateModelStats(model);
                     setModelStats(stats);
+
+                    // Store model reference for later use
+                    threeRef.current = {...threeRef.current, model};
                 } else if (fileExt === 'stl') {
                     loader = new STLLoader();
                     const geometry = loader.parse(contents);
-                    
+
                     if (geometry) {
                         const material = new THREE.MeshStandardMaterial({
                             color: 0x667eea,
@@ -221,11 +313,14 @@ function App() {
                         });
                         model = new THREE.Mesh(geometry, material);
                         scene.add(model);
-                        centerModel(model, camera);
-                        
+                        centerModel(model, camera, scene);
+
                         // Calculate model statistics
                         const stats = calculateModelStats(model);
                         setModelStats(stats);
+
+                        // Store model reference for later use
+                        threeRef.current = {...threeRef.current, model};
                     } else {
                         throw new Error('Failed to parse STL geometry');
                     }
@@ -254,6 +349,10 @@ function App() {
         const controls = new OrbitControls(camera, canvasRef.current);
         controls.enableDamping = true;
         controls.dampingFactor = 0.05;
+        controls.minDistance = 1;
+        controls.maxDistance = 100;
+        controls.enableZoom = true;
+        controls.enablePan = true;
 
         // Animation loop
         const animate = () => {
@@ -267,24 +366,50 @@ function App() {
         animate();
     };
 
-    const centerModel = (model, camera) => {
+    const centerModel = (model, camera, scene) => {
         const box = new THREE.Box3().setFromObject(model);
+        const min = box.min;
+        const max = box.max;
         const center = box.getCenter(new THREE.Vector3());
         const size = box.getSize(new THREE.Vector3());
 
-        // Center the model
-        model.position.x += (model.position.x - center.x);
-        model.position.y += (model.position.y - center.y);
-        model.position.z += (model.position.z - center.z);
+        // Position model so its bottom is at y=0 (on the grid)
+        // And center it horizontally
+        model.position.set(-center.x, -min.y, -center.z);
+        model.rotation.set(0, 0, 0); // Reset rotation
 
-        // Adjust camera position
+        // Set grid helper to y=0 (ground level)
+        scene.traverse((object) => {
+            if (object.isGridHelper) {
+                object.position.y = 0;
+            }
+        });
+
+        // Adjust camera position with correct formula
         const maxDim = Math.max(size.x, size.y, size.z);
         const fov = camera.fov * (Math.PI / 180);
-        let cameraZ = Math.abs(maxDim / 2 * Math.tan(fov * 2));
-        cameraZ *= 2; // Adjust for better viewing
 
-        camera.position.set(0, 0, cameraZ);
-        camera.lookAt(0, 0, 0);
+        // Correct formula: distance = size / (2 * tan(fov/2))
+        let cameraZ = maxDim / (2 * Math.tan(fov / 2));
+        cameraZ *= 2.5; // Add padding for better view
+
+        // Ensure minimum distance
+        cameraZ = Math.max(cameraZ, 5);
+
+        camera.position.set(0, cameraZ * 0.5, cameraZ);
+        camera.lookAt(0, size.y / 2, 0);
+
+        // Update camera clipping planes
+        camera.near = Math.max(0.1, cameraZ * 0.01);
+        camera.far = cameraZ * 10;
+        camera.updateProjectionMatrix();
+
+        // Update controls distance limits
+        if (threeRef.current && threeRef.current.controls) {
+            threeRef.current.controls.minDistance = Math.max(1, cameraZ * 0.1);
+            threeRef.current.controls.maxDistance = cameraZ * 5;
+            threeRef.current.controls.target.set(0, size.y / 2, 0);
+        }
     };
 
     const calculateModelStats = (model) => {
@@ -372,11 +497,169 @@ function App() {
         };
     };
 
+    const handleCenterModel = () => {
+        if (threeRef.current && threeRef.current.model && threeRef.current.camera) {
+            const {model, camera} = threeRef.current;
+
+            // Reset model position to origin
+            const box = new THREE.Box3().setFromObject(model);
+            const center = box.getCenter(new THREE.Vector3());
+            model.position.set(-center.x, -center.y, -center.z);
+            model.rotation.set(0, 0, 0); // Reset rotation
+
+            // Adjust camera position with correct formula
+            const size = box.getSize(new THREE.Vector3());
+            const maxDim = Math.max(size.x, size.y, size.z);
+            const fov = camera.fov * (Math.PI / 180);
+
+            // Correct formula: distance = size / (2 * tan(fov/2))
+            let cameraZ = maxDim / (2 * Math.tan(fov / 2));
+            cameraZ *= 2.5; // Add padding for better view
+
+            // Ensure minimum distance
+            cameraZ = Math.max(cameraZ, 5);
+
+            camera.position.set(0, 0, cameraZ);
+            camera.lookAt(0, 0, 0);
+
+            // Update camera clipping planes
+            camera.near = Math.max(0.1, cameraZ * 0.01);
+            camera.far = cameraZ * 10;
+            camera.updateProjectionMatrix();
+
+            // Reset controls with proper distance limits
+            if (threeRef.current.controls) {
+                threeRef.current.controls.reset();
+                threeRef.current.controls.target.set(0, 0, 0);
+                threeRef.current.controls.minDistance = Math.max(1, cameraZ * 0.1);
+                threeRef.current.controls.maxDistance = cameraZ * 5;
+            }
+        }
+    };
+
+    const handleScreenshot = async () => {
+        if (threeRef.current && threeRef.current.renderer) {
+            const {renderer, scene, camera} = threeRef.current;
+
+            try {
+                // Render one more time to ensure current view is captured
+                renderer.render(scene, camera);
+
+                // Force a re-render and wait for it
+                await new Promise((resolve) => {
+                    requestAnimationFrame(() => {
+                        resolve();
+                    });
+                });
+
+                // Get image data as base64
+                const dataURL = renderer.domElement.toDataURL('image/png', 1.0);
+                // Remove the "data:image/png;base64," prefix
+                const base64Data = dataURL.split(',')[1];
+
+                // Call backend to save file with user-selected location
+                await SaveScreenshot(base64Data);
+                console.log('Screenshot saved successfully');
+            } catch (err) {
+                console.error('Error taking screenshot:', err);
+                setError('Failed to take screenshot. Please try again.');
+            }
+        }
+    };
+
+    const handleFrontView = () => {
+        if (threeRef.current && threeRef.current.model && threeRef.current.camera && threeRef.current.controls) {
+            const {model, camera, controls} = threeRef.current;
+            const box = new THREE.Box3().setFromObject(model);
+            const size = box.getSize(new THREE.Vector3());
+            const maxDim = Math.max(size.x, size.y, size.z);
+            const fov = camera.fov * (Math.PI / 180);
+
+            let distance = maxDim / (2 * Math.tan(fov / 2));
+            distance *= 2.5;
+            distance = Math.max(distance, 5);
+
+            camera.position.set(0, size.y / 2, distance);
+            camera.lookAt(0, size.y / 2, 0);
+            controls.target.set(0, size.y / 2, 0);
+            controls.update();
+        }
+    };
+
+    const handleLeftView = () => {
+        if (threeRef.current && threeRef.current.model && threeRef.current.camera && threeRef.current.controls) {
+            const {model, camera, controls} = threeRef.current;
+            const box = new THREE.Box3().setFromObject(model);
+            const size = box.getSize(new THREE.Vector3());
+            const maxDim = Math.max(size.x, size.y, size.z);
+            const fov = camera.fov * (Math.PI / 180);
+
+            let distance = maxDim / (2 * Math.tan(fov / 2));
+            distance *= 2.5;
+            distance = Math.max(distance, 5);
+
+            camera.position.set(-distance, size.y / 2, 0);
+            camera.lookAt(0, size.y / 2, 0);
+            controls.target.set(0, size.y / 2, 0);
+            controls.update();
+        }
+    };
+
+    const handleRightView = () => {
+        if (threeRef.current && threeRef.current.model && threeRef.current.camera && threeRef.current.controls) {
+            const {model, camera, controls} = threeRef.current;
+            const box = new THREE.Box3().setFromObject(model);
+            const size = box.getSize(new THREE.Vector3());
+            const maxDim = Math.max(size.x, size.y, size.z);
+            const fov = camera.fov * (Math.PI / 180);
+
+            let distance = maxDim / (2 * Math.tan(fov / 2));
+            distance *= 2.5;
+            distance = Math.max(distance, 5);
+
+            camera.position.set(distance, size.y / 2, 0);
+            camera.lookAt(0, size.y / 2, 0);
+            controls.target.set(0, size.y / 2, 0);
+            controls.update();
+        }
+    };
+
+    const handleTopView = () => {
+        if (threeRef.current && threeRef.current.model && threeRef.current.camera && threeRef.current.controls) {
+            const {model, camera, controls} = threeRef.current;
+            const box = new THREE.Box3().setFromObject(model);
+            const size = box.getSize(new THREE.Vector3());
+            const maxDim = Math.max(size.x, size.y, size.z);
+            const fov = camera.fov * (Math.PI / 180);
+
+            let distance = maxDim / (2 * Math.tan(fov / 2));
+            distance *= 2.5;
+            distance = Math.max(distance, 5);
+
+            camera.position.set(0, distance, 0);
+            camera.lookAt(0, size.y / 2, 0);
+            controls.target.set(0, size.y / 2, 0);
+            controls.update();
+        }
+    };
+
     return (
         <div className="App">
             <header className="header">
-                <h1>🏆 3D Model Viewer</h1>
-                <p>View OBJ, GLB, and STL files</p>
+                <div className="header-title">
+                    <h1>{t.title}</h1>
+                    <p>{t.subtitle} {version && <span className="version">({version})</span>}</p>
+                </div>
+                <div className="lang-control">
+                    <span className="lang-label">{t.languageLabel}:</span>
+                    <button
+                        className="lang-btn"
+                        onClick={() => setLanguage(language === 'zh' ? 'en' : 'zh')}
+                        title={language === 'zh' ? 'Switch to English' : '切换到中文'}
+                    >
+                        {language === 'zh' ? 'EN' : '中'}
+                    </button>
+                </div>
             </header>
 
             <main className="main">
@@ -389,68 +672,68 @@ function App() {
                             onChange={handleFileSelect}
                         />
                         <label htmlFor="modelFile" className="upload-btn">
-                            📁 Select 3D Model
+                            {t.selectModel}
                         </label>
                     </div>
 
-                    {loading && <div className="loading">Loading model...</div>}
+                    {loading && <div className="loading">{t.loading}</div>}
                     {error && <div className="error">{error}</div>}
                 </div>
 
                 {modelInfo && (
                     <div className="model-info">
-                        <h3>Model Information</h3>
+                        <h3>{t.modelInfo}</h3>
                         <div className="info-item">
-                            <span className="label">Format:</span>
+                            <span className="label">{t.format}</span>
                             <span className="value">{modelInfo.format || 'Unknown'}</span>
                         </div>
                         <div className="info-item">
-                            <span className="label">File:</span>
+                            <span className="label">{t.file}</span>
                             <span className="value">{modelPath}</span>
                         </div>
                         <div className="info-item">
-                            <span className="label">Status:</span>
-                            <span className="value">{modelInfo.loaded ? 'Loaded' : 'Not loaded'}</span>
+                            <span className="label">{t.status}</span>
+                            <span className="value">{modelInfo.loaded ? t.loaded : t.notLoaded}</span>
                         </div>
                     </div>
                 )}
 
                 {modelStats && (
                     <div className="model-stats">
-                        <h3>📊 Model Statistics</h3>
+                        <h3>{t.modelStats}</h3>
                         <div className="stats-grid">
                             <div className="stat-card">
-                                <span className="stat-label">Vertices</span>
+                                <span className="stat-label">{t.vertices}</span>
                                 <span className="stat-value">{modelStats.vertices.toLocaleString()}</span>
                                 <span className="stat-unit">count</span>
                             </div>
                             <div className="stat-card">
-                                <span className="stat-label">Triangles</span>
+                                <span className="stat-label">{t.triangles}</span>
                                 <span className="stat-value">{modelStats.triangles.toLocaleString()}</span>
                                 <span className="stat-unit">count</span>
                             </div>
                             <div className="stat-card">
-                                <span className="stat-label">Size X</span>
+                                <span className="stat-label">{t.sizeX}</span>
                                 <span className="stat-value">{modelStats.sizeX}</span>
                                 <span className="stat-unit">mm</span>
                             </div>
                             <div className="stat-card">
-                                <span className="stat-label">Size Y</span>
+                                <span className="stat-label">{t.sizeY}</span>
                                 <span className="stat-value">{modelStats.sizeY}</span>
                                 <span className="stat-unit">mm</span>
                             </div>
                             <div className="stat-card">
-                                <span className="stat-label">Size Z</span>
+                                <span className="stat-label">{t.sizeZ}</span>
                                 <span className="stat-value">{modelStats.sizeZ}</span>
                                 <span className="stat-unit">mm</span>
                             </div>
                             <div className="stat-card">
-                                <span className="stat-label">Volume</span>
+                                <span className="stat-label">{t.volume}</span>
                                 <span className="stat-value">{modelStats.volume}</span>
                                 <span className="stat-unit">mm³</span>
                             </div>
                             <div className="stat-card">
-                                <span className="stat-label">Surface</span>
+                                <span className="stat-label">{t.surface}</span>
                                 <span className="stat-value">{modelStats.surfaceArea}</span>
                                 <span className="stat-unit">mm²</span>
                             </div>
@@ -459,20 +742,64 @@ function App() {
                 )}
 
                 <div className="viewer">
-                    <canvas ref={canvasRef} className="canvas"></canvas>
+                    <div className="viewer-container">
+                        <div className="viewer-controls">
+                            <button
+                                className="viewer-btn"
+                                onClick={handleFrontView}
+                                title={t.frontView}
+                                disabled={!threeRef.current}
+                            >
+                                👁️ {t.frontView}
+                            </button>
+                            <button
+                                className="viewer-btn"
+                                onClick={handleLeftView}
+                                title={t.leftView}
+                                disabled={!threeRef.current}
+                            >
+                                ⬅️ {t.leftView}
+                            </button>
+                            <button
+                                className="viewer-btn"
+                                onClick={handleRightView}
+                                title={t.rightView}
+                                disabled={!threeRef.current}
+                            >
+                                ➡️ {t.rightView}
+                            </button>
+                            <button
+                                className="viewer-btn"
+                                onClick={handleTopView}
+                                title={t.topView}
+                                disabled={!threeRef.current}
+                            >
+                                ⬆️ {t.topView}
+                            </button>
+                            <button
+                                className="viewer-btn"
+                                onClick={handleScreenshot}
+                                title={t.screenshot}
+                                disabled={!threeRef.current}
+                            >
+                                📸 {t.screenshot}
+                            </button>
+                        </div>
+                        <canvas ref={canvasRef} className="canvas"></canvas>
+                    </div>
                     <div className="viewer-instructions">
-                        <h4>Controls</h4>
+                        <h4>{t.controls}</h4>
                         <ul>
-                            <li>Left-click drag: Rotate model</li>
-                            <li>Scroll wheel: Zoom in/out</li>
-                            <li>Right-click drag: Pan</li>
+                            <li>{t.leftClickDrag}</li>
+                            <li>{t.scrollWheel}</li>
+                            <li>{t.rightClickDrag}</li>
                         </ul>
                     </div>
                 </div>
             </main>
 
             <footer className="footer">
-                <p>Powered by Wisonlau</p>
+                <p>{t.poweredBy}</p>
             </footer>
         </div>
     );

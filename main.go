@@ -8,6 +8,13 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
 )
 
+const (
+	// Version of the application
+	Version = "v1.0.5"
+	// Application name
+	AppName = "3D Model Viewer"
+)
+
 //go:embed all:frontend/dist
 var assets embed.FS
 
@@ -17,7 +24,7 @@ func main() {
 
 	// Create application with options
 	err := wails.Run(&options.App{
-		Title:  "3dview",
+		Title:  AppName + " " + Version,
 		Width:  1024,
 		Height: 768,
 		MinWidth: 800,

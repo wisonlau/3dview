@@ -19,6 +19,7 @@ A powerful 3D model viewer built with Wails and Three.js, supporting OBJ, GLB/GL
 - 🌐 **Multiple Formats**: OBJ, GLB/GLTF, and STL support
 - 🔧 **Robust Loading**: Proper handling of binary and text file formats
 - 📊 **Model Statistics**: Real-time calculation of vertices, triangles, dimensions, volume, and surface area
+- 🎯 **View Controls**: Center model, capture screenshots, and reset view to default state
 
 ## Tech Stack
 
@@ -161,11 +162,20 @@ MIT License
 
 ## Version History
 
+### v1.0.5 (2026-04-16)
+- ✅ Added view controls panel in top-right corner of canvas
+- ✅ Added screenshot functionality with file save dialog
+- ✅ Buttons are disabled when no model is loaded
+- ✅ Users can now choose custom save location for screenshots
+
 ### v1.0.4 (2026-04-16)
 - ✅ Added detailed model statistics panel with units
 - ✅ Real-time calculation of vertices, triangles, dimensions
 - ✅ Volume and surface area calculations for loaded models
 - ✅ Improved statistics display with visual card layout
+- ✅ Added version number display in window title and UI
+- ✅ Fixed file format recognition issues
+- ✅ Added window minimum size constraints to prevent scrollbars
 
 ### v1.0.3 (2026-04-15)
 - ✅ Fixed WebGL context conflict when loading multiple files

@@ -6,12 +6,20 @@ export function GetModelInfo() {
   return window['go']['main']['App']['GetModelInfo']();
 }
 
+export function GetVersion() {
+  return window['go']['main']['App']['GetVersion']();
+}
+
 export function Greet(arg1) {
   return window['go']['main']['App']['Greet'](arg1);
 }
 
 export function LoadModel(arg1) {
   return window['go']['main']['App']['LoadModel'](arg1);
+}
+
+export function SaveScreenshot(arg1) {
+  return window['go']['main']['App']['SaveScreenshot'](arg1);
 }
 
 export function StartRendering(arg1) {
