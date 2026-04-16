@@ -26,7 +26,6 @@
 - **后端**：Go + Wails
 - **前端**：React + Vite + Three.js
 - **3D 渲染**：Three.js (WebGL) ES6 模块
-- **文件解析**：Trophy 库
 - **构建系统**：Vite（优化打包）
 
 ### Three.js 架构
@@ -162,9 +161,11 @@ MIT License
 
 - [Wails](https://wails.io/) - 用于构建桌面应用的 Go 框架
 - [Three.js](https://threejs.org/) - 3D Web 渲染库
-- [Trophy](https://github.com/taigrr/trophy) - 3D 模型解析库
 
 ## 版本历史
+
+### v1.0.6 (2026-04-16)
+- ✅ 隐藏功能：连续点击5次"控制方式"解锁控制台
 
 ### v1.0.5 (2026-04-16)
 - ✅ 在 Canvas 右上角新增视图控制面板

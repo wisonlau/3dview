@@ -21,11 +21,3 @@ export function LoadModel(arg1) {
 export function SaveScreenshot(arg1) {
   return window['go']['main']['App']['SaveScreenshot'](arg1);
 }
-
-export function StartRendering(arg1) {
-  return window['go']['main']['App']['StartRendering'](arg1);
-}
-
-export function StopRendering() {
-  return window['go']['main']['App']['StopRendering']();
-}

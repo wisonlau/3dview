@@ -321,6 +321,131 @@
     margin-bottom: 0.25rem;
 }
 
+.app-console {
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(102, 126, 234, 0.3);
+    border-radius: 8px;
+    margin-top: 1rem;
+    overflow: hidden;
+    width: 100%;
+    align-self: stretch;
+}
+
+.console-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    background: rgba(102, 126, 234, 0.2);
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.3s ease;
+}
+
+.console-header:hover {
+    background: rgba(102, 126, 234, 0.4);
+}
+
+.console-title {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: #667eea;
+}
+
+.console-toggle {
+    font-size: 0.8rem;
+    color: #8892b0;
+    transition: transform 0.3s ease;
+}
+
+.console-content {
+    max-height: 400px;
+    min-height: 200px;
+    overflow-y: auto;
+    padding: 0.5rem;
+}
+
+.console-clear {
+    width: 100%;
+    padding: 0.5rem;
+    margin-bottom: 0.5rem;
+    background: rgba(239, 68, 68, 0.2);
+    color: #ef4444;
+    border: 1px solid rgba(239, 68, 68, 0.4);
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.console-clear:hover {
+    background: rgba(239, 68, 68, 0.4);
+    transform: translateY(-1px);
+}
+
+.console-logs {
+    font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
+    font-size: 0.85rem;
+    line-height: 1.5;
+}
+
+.console-empty {
+    text-align: center;
+    color: #8892b0;
+    padding: 2rem;
+    font-style: italic;
+}
+
+.console-log {
+    display: flex;
+    gap: 0.75rem;
+    padding: 0.5rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    animation: fadeIn 0.3s ease-out;
+}
+
+.console-log:hover {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.console-log.info {
+    border-left: 3px solid #667eea;
+}
+
+.console-log.error {
+    border-left: 3px solid #ef4444;
+    background: rgba(239, 68, 68, 0.05);
+}
+
+.console-log.success {
+    border-left: 3px solid #10b981;
+}
+
+.log-time {
+    color: #667eea;
+    font-size: 0.75rem;
+    min-width: 80px;
+    opacity: 0.8;
+}
+
+.log-message {
+    flex: 1;
+    color: #ffffff;
+    word-break: break-word;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateX(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
 .footer {
     text-align: center;
     padding: 1.5rem;

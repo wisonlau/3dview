@@ -38,7 +38,10 @@ const translations = {
         rightView: 'Right',
         topView: 'Top',
         screenshot: 'Screenshot',
-        languageLabel: 'Language'
+        languageLabel: 'Language',
+        consoleTitle: 'Console',
+        clearLogs: 'Clear Logs',
+        noLogs: 'No logs yet'
     },
     zh: {
         title: '🏆 3D模型查看器',
@@ -69,7 +72,10 @@ const translations = {
         rightView: '右视图',
         topView: '俯视图',
         screenshot: '截图',
-        languageLabel: '语言'
+        languageLabel: '语言',
+        consoleTitle: '控制台',
+        clearLogs: '清空日志',
+        noLogs: '暂无日志'
     }
 };
 
@@ -81,10 +87,47 @@ function App() {
     const [error, setError] = useState('');
     const [version, setVersion] = useState('');
     const [language, setLanguage] = useState('zh');
+    const [consoleLogs, setConsoleLogs] = useState([]);
+    const [consoleVisible, setConsoleVisible] = useState(false);
+    const [clickCount, setClickCount] = useState(0);
     const canvasRef = useRef(null);
     const threeRef = useRef(null);
+    const clickTimerRef = useRef(null);
 
     const t = translations[language];
+
+    // Log function
+    const addLog = (message, type = 'info') => {
+        const timestamp = new Date().toLocaleTimeString('zh-CN', { hour12: false });
+        setConsoleLogs(prev => [...prev, { time: timestamp, message, type }].slice(-100));
+        console.log(`[${timestamp}] [${type.toUpperCase()}] ${message}`);
+    };
+
+    // Handle clicks on "Controls" text to show console
+    const handleControlsTitleClick = () => {
+        setClickCount(prev => {
+            const newCount = prev + 1;
+
+            // Clear existing timer
+            if (clickTimerRef.current) {
+                clearTimeout(clickTimerRef.current);
+            }
+
+            // Set new timer to reset count after 3 seconds
+            clickTimerRef.current = setTimeout(() => {
+                setClickCount(0);
+            }, 3000);
+
+            // If clicked 5 times, show console
+            if (newCount === 5) {
+                setConsoleVisible(true);
+                addLog('🔓 Console unlocked (secret mode activated)', 'success');
+                return 0; // Reset count
+            }
+
+            return newCount;
+        });
+    };
 
     // Handle window resize
     useEffect(() => {
@@ -135,8 +178,10 @@ function App() {
             try {
                 const appVersion = await GetVersion();
                 setVersion(appVersion);
+                addLog('✓ Application version: ' + appVersion);
             } catch (err) {
                 console.error('Failed to load version:', err);
+                addLog('✗ Failed to load version: ' + err.message, 'error');
             }
         };
         loadVersion();
@@ -150,22 +195,28 @@ function App() {
             setError('');
             setLoading(true);
 
+            addLog('📁 File selected: ' + file.name + ' (' + (file.size / 1024).toFixed(2) + ' KB)');
+
             try {
                 console.log('Loading file:', file.name);
+                addLog('⏳ Loading model...');
 
                 // Load model using Wails backend
                 await LoadModel(file.name);
+                addLog('✓ Model loaded via Wails backend');
 
                 // Get model info
                 const info = await GetModelInfo();
                 console.log('Model info:', info);
                 setModelInfo(info);
+                addLog('✓ Model info retrieved: ' + info.format + ' format');
 
                 // Load 3D model in Three.js
                 loadThreeJSModel(file);
             } catch (err) {
                 console.error('Error loading model:', err);
                 setError(err.toString());
+                addLog('✗ Error loading model: ' + err.message, 'error');
             } finally {
                 setLoading(false);
             }
@@ -269,6 +320,8 @@ function App() {
             let model;
 
             try {
+                addLog('🔧 Parsing ' + fileExt.toUpperCase() + ' file...');
+
                 if (fileExt === 'glb' || fileExt === 'gltf') {
                     loader = new GLTFLoader();
                     if (fileExt === 'glb') {
@@ -277,7 +330,7 @@ function App() {
                         const json = JSON.parse(contents);
                         model = loader.parse(json, '');
                     }
-                    
+
                     if (model.scene) {
                         scene.add(model.scene);
                         centerModel(model.scene, camera, scene);
@@ -288,6 +341,7 @@ function App() {
 
                         // Store model reference for later use
                         threeRef.current = {...threeRef.current, model: model.scene};
+                        addLog('✓ GLTF model rendered: ' + stats.vertices.toLocaleString() + ' vertices, ' + stats.triangles.toLocaleString() + ' triangles');
                     }
                 } else if (fileExt === 'obj') {
                     loader = new OBJLoader();
@@ -301,6 +355,7 @@ function App() {
 
                     // Store model reference for later use
                     threeRef.current = {...threeRef.current, model};
+                    addLog('✓ OBJ model rendered: ' + stats.vertices.toLocaleString() + ' vertices, ' + stats.triangles.toLocaleString() + ' triangles');
                 } else if (fileExt === 'stl') {
                     loader = new STLLoader();
                     const geometry = loader.parse(contents);
@@ -321,6 +376,7 @@ function App() {
 
                         // Store model reference for later use
                         threeRef.current = {...threeRef.current, model};
+                        addLog('✓ STL model rendered: ' + stats.vertices.toLocaleString() + ' vertices, ' + stats.triangles.toLocaleString() + ' triangles');
                     } else {
                         throw new Error('Failed to parse STL geometry');
                     }
@@ -330,12 +386,14 @@ function App() {
                 console.error('File extension:', fileExt);
                 console.error('File size:', file.size);
                 setError(`Failed to load 3D model: ${err.message}`);
+                addLog('✗ Failed to load model: ' + err.message, 'error');
             }
         };
 
         reader.onerror = function(e) {
             console.error('FileReader error:', e);
             setError('Failed to read file');
+            addLog('✗ Failed to read file', 'error');
         };
 
         // STL and GLB files should be read as ArrayBuffer
@@ -542,6 +600,8 @@ function App() {
             const {renderer, scene, camera} = threeRef.current;
 
             try {
+                addLog('📸 Taking screenshot...');
+
                 // Render one more time to ensure current view is captured
                 renderer.render(scene, camera);
 
@@ -559,10 +619,11 @@ function App() {
 
                 // Call backend to save file with user-selected location
                 await SaveScreenshot(base64Data);
-                console.log('Screenshot saved successfully');
+                addLog('✓ Screenshot saved successfully');
             } catch (err) {
                 console.error('Error taking screenshot:', err);
                 setError('Failed to take screenshot. Please try again.');
+                addLog('✗ Failed to take screenshot: ' + err.message, 'error');
             }
         }
     };
@@ -583,6 +644,7 @@ function App() {
             camera.lookAt(0, size.y / 2, 0);
             controls.target.set(0, size.y / 2, 0);
             controls.update();
+            addLog('👁️ Switched to Front View');
         }
     };
 
@@ -602,6 +664,7 @@ function App() {
             camera.lookAt(0, size.y / 2, 0);
             controls.target.set(0, size.y / 2, 0);
             controls.update();
+            addLog('⬅️ Switched to Left View');
         }
     };
 
@@ -621,6 +684,7 @@ function App() {
             camera.lookAt(0, size.y / 2, 0);
             controls.target.set(0, size.y / 2, 0);
             controls.update();
+            addLog('➡️ Switched to Right View');
         }
     };
 
@@ -640,6 +704,7 @@ function App() {
             camera.lookAt(0, size.y / 2, 0);
             controls.target.set(0, size.y / 2, 0);
             controls.update();
+            addLog('⬆️ Switched to Top View');
         }
     };
 
@@ -788,13 +853,38 @@ function App() {
                         <canvas ref={canvasRef} className="canvas"></canvas>
                     </div>
                     <div className="viewer-instructions">
-                        <h4>{t.controls}</h4>
+                        <h4 onClick={handleControlsTitleClick} style={{ cursor: 'pointer', userSelect: 'none' }}>{t.controls}</h4>
                         <ul>
                             <li>{t.leftClickDrag}</li>
                             <li>{t.scrollWheel}</li>
                             <li>{t.rightClickDrag}</li>
                         </ul>
                     </div>
+                    {consoleVisible && (
+                        <div className="app-console">
+                        <div className="console-header" onClick={() => setConsoleVisible(false)}>
+                            <span className="console-title">🖥️ {t.consoleTitle}</span>
+                            <span className="console-toggle">✕</span>
+                        </div>
+                        <div className="console-content">
+                            <button className="console-clear" onClick={() => setConsoleLogs([])}>
+                                {t.clearLogs}
+                            </button>
+                            <div className="console-logs">
+                                {consoleLogs.length === 0 ? (
+                                    <div className="console-empty">{t.noLogs}</div>
+                                ) : (
+                                    consoleLogs.map((log, index) => (
+                                        <div key={index} className={`console-log ${log.type}`}>
+                                                <span className="log-time">[{log.time}]</span>
+                                                <span className="log-message">{log.message}</span>
+                                            </div>
+                                    ))
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                )}
                 </div>
             </main>
 

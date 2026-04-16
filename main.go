@@ -10,7 +10,7 @@ import (
 
 const (
 	// Version of the application
-	Version = "v1.0.5"
+	Version = "v1.0.6"
 	// Application name
 	AppName = "3D Model Viewer"
 )
@@ -24,7 +24,7 @@ func main() {
 
 	// Create application with options
 	err := wails.Run(&options.App{
-		Title:  AppName + " " + Version,
+		Title:  AppName,
 		Width:  1024,
 		Height: 768,
 		MinWidth: 800,

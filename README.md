@@ -26,7 +26,6 @@ A powerful 3D model viewer built with Wails and Three.js, supporting OBJ, GLB/GL
 - **Backend**: Go + Wails
 - **Frontend**: React + Vite + Three.js
 - **3D Rendering**: Three.js (WebGL) with ES6 modules
-- **File Parsing**: Trophy library
 - **Build System**: Vite (optimized bundling)
 
 ### Three.js Architecture
@@ -158,9 +157,11 @@ MIT License
 
 - [Wails](https://wails.io/) - Go framework for building desktop apps
 - [Three.js](https://threejs.org/) - 3D web rendering library
-- [Trophy](https://github.com/taigrr/trophy) - 3D model parsing library
 
 ## Version History
+
+### v1.0.6 (2026-04-16)
+- ✅ Secret activation: click "Controls" 5 times to unlock console
 
 ### v1.0.5 (2026-04-16)
 - ✅ Added view controls panel in top-right corner of canvas
