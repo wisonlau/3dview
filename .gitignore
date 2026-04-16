@@ -2,3 +2,5 @@ build/bin
 node_modules
 frontend/dist
 .idea
+build/releases
+.DS_Store
